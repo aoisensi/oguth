@@ -11,6 +11,7 @@ type ErrorCode string
 const (
 	ErrorCodeInvalidRequest          ErrorCode = "invalid_request"
 	ErrorCodeUnauthorizedClient                = "unauthorized_client"
+	ErrorCodeUnsupportedGrantType              = "unsupported_grant_type"
 	ErrorCodeUnsupportedResponseType           = "unsupported_response_type"
 	ErrorCodeAccessDenied                      = "access_denied"
 	ErrorCodeInvalidScope                      = "invalid_scope"

@@ -1,7 +1,6 @@
 package oguth
 
 import (
-	"encoding/base64"
 	"net/http"
 	"net/url"
 	"time"
@@ -46,13 +45,12 @@ func authorizeRequestCode(a *OAuth, r *http.Request) url.Values {
 		return e.ToValues()
 	}
 	code := a.config.AuthCodeGenerator()
-	auth := authCode{
+	auth := authorize{
 		id:      f.ClientId,
-		code:    code,
 		expires: time.Now().Add(a.config.AuthCodeExpires),
 		uri:     f.RedirectUri,
 	}
-	a.config.Storage.SetAuthCode(auth)
+	a.config.Storage.SetAuthorize(code, auth)
 	v := url.Values{"code": {code}}
 	if f.State != "" {
 		v.Set("state", f.State)
@@ -61,10 +59,5 @@ func authorizeRequestCode(a *OAuth, r *http.Request) url.Values {
 }
 
 func DefaultAuthCodeGenerator() (code string) {
-	size := 16 + random.Intn(16)
-	body := make([]byte, size)
-	for i := range body {
-		body[i] = byte(random.Intn(255))
-	}
-	return base64.StdEncoding.EncodeToString(body)
+	return SimpleRandomTokenGenerator(32)
 }

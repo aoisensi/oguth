@@ -1,12 +1,16 @@
-package oguth
+package test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/aoisensi/oguth"
+)
 
 func TestGeneratedCodeSyntax(t *testing.T) {
 	//https://tools.ietf.org/html/rfc6749#appendix-A.11
 
 	for i := 0; i < 100; i++ {
-		code := DefaultAuthCodeGenerator()
+		code := oguth.DefaultAuthCodeGenerator()
 		if !VSCHARSyntax(code) {
 			t.Fail()
 		}
