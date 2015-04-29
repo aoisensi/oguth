@@ -1,19 +1,20 @@
 package oguth
 
-type Scope string
-type Scopes []Scope
+import "strings"
 
-func (sc Scopes) ContainScope(s Scope) bool {
-	for _, c := range sc {
-		if c == s {
+type Scopes []string
+
+func (scopes Scopes) ContainScope(scope string) bool {
+	for _, s := range scopes {
+		if s == scope {
 			return true
 		}
 	}
 	return false
 }
 
-func (root Scopes) ContainScopes(ss Scopes) bool {
-	for _, s := range ss {
+func (root Scopes) ContainScopes(scopes Scopes) bool {
+	for _, s := range scopes {
 		if !root.ContainScope(s) {
 			return false
 		}
@@ -22,7 +23,19 @@ func (root Scopes) ContainScopes(ss Scopes) bool {
 }
 
 func ParseScopes(s string) Scopes {
-	//TODO
-	//return Scopes([]Scope(strings.Split(s, " ")))
-	return make(Scopes, 0)
+	strs := make([]string, 0)
+	for _, c := range strings.Split(s, " ") {
+		if c != "" {
+			strs = append(strs, c)
+		}
+	}
+	return Scopes(strs)
+}
+
+func (s Scopes) Available(oauth *OAuth) *Error {
+	if oauth.config.AvailableScopes.ContainScopes(s) {
+		return nil
+	}
+
+	return ErrorUnavailableScope
 }

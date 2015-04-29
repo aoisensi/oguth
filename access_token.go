@@ -77,12 +77,15 @@ func accessTokenRequestPassowrd(a *OAuth, r *http.Request) (interface{}, int) {
 	}
 
 	token := a.config.AccessTokenGenerator()
-	access := accessToken{client: cli}
-	a.config.Storage.SetAccessToken(token, access)
+	access := &accessToken{
+		client:  cli,
+		expires: a.getTokenExpires(),
+	}
+	a.config.Storage.AddAccessToken(token, access)
 	body := accessTokenResponse{
-		TokenType:    TokenTypeBearer,
+		TokenType:    a.config.TokenType,
 		AccessToken:  token,
-		ExpiresIn:    86400,
+		ExpiresIn:    a.config.accessTokenExpiresInt,
 		RefreshToken: "test",
 	}
 	return body, http.StatusAccepted

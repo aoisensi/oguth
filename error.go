@@ -8,6 +8,37 @@ import (
 
 type ErrorCode string
 
+var (
+	ErrorGrantTypeMissing = &Error{
+		Error:            ErrorCodeInvalidRequest,
+		ErrorDescription: "Required parameter is missing: grant_type",
+	}
+	ErrorResponseTypeMissing = &Error{
+		Error:            ErrorCodeInvalidRequest,
+		ErrorDescription: "Required parameter is missing: response_type",
+	}
+	ErrorClientIdMissing = &Error{
+		Error:            ErrorCodeInvalidRequest,
+		ErrorDescription: "Required parameter is missing: client_id",
+	}
+	ErrorUnavailableScope = &Error{
+		Error:            ErrorCodeInvalidScope,
+		ErrorDescription: "Unknown scope(s) have been included in the request",
+	}
+	ErrorUnsupportedGrantType = &Error{
+		Error:            ErrorCodeUnsupportedGrantType,
+		ErrorDescription: "This grant type is not supported",
+	}
+	ErrorUnsupportedResponseType = &Error{
+		Error:            ErrorCodeUnsupportedResponseType,
+		ErrorDescription: "The authorization server does not support obtaining an authorization code using this method",
+	}
+	ErrorClientNotFound = &Error{
+		Error:            ErrorCodeInvalidRequest,
+		ErrorDescription: "The OAuth client was not found.",
+	}
+)
+
 const (
 	ErrorCodeInvalidRequest          ErrorCode = "invalid_request"
 	ErrorCodeUnauthorizedClient                = "unauthorized_client"
@@ -26,13 +57,13 @@ type Error struct {
 	State            string    `json:"state"`
 }
 
-func NewError(code ErrorCode) Error {
-	return Error{
+func NewError(code ErrorCode) *Error {
+	return &Error{
 		Error: code,
 	}
 }
 
-func (e Error) ToValues() url.Values {
+func (e *Error) ToValues() url.Values {
 	v := url.Values{
 		"error":             {string(e.Error)},
 		"error_description": {e.ErrorDescription},
@@ -44,7 +75,7 @@ func (e Error) ToValues() url.Values {
 	return v
 }
 
-func (e Error) Write(w http.ResponseWriter) {
+func (e *Error) Write(w http.ResponseWriter) {
 	body, _ := json.Marshal(&e)
 	w.Write(body)
 }
