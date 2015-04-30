@@ -7,6 +7,7 @@ type Authorize interface {
 	GetExpires() time.Time
 	GetRedirectUri() string
 	SetClient(Client)
+	GetClient() Client
 }
 
 type AccessToken interface {
@@ -14,11 +15,18 @@ type AccessToken interface {
 	GetExpires() time.Time
 }
 
+type RefreshToken interface {
+	GetClient() Client
+}
+
 type Storage interface {
 	AddAuthorize(code string, auth Authorize)
 	GetAuthorize(code string) Authorize
 	DisableAuthorize(id string)
 
-	GetAccessToken(token string) AccessToken
 	AddAccessToken(token string, access AccessToken)
+	GetAccessToken(token string) AccessToken
+
+	AddRefreshToken(token string, refresh RefreshToken)
+	SetRefreshToken(token string) RefreshToken
 }

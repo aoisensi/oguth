@@ -2,13 +2,12 @@ package oguth
 
 import (
 	"net/http"
-	"net/url"
 	"time"
 )
 
 var DefaultConfig = NewConfig()
 
-type AuthHandler func(*OAuth, *http.Request) url.Values
+type AuthHandler func(*OAuth, http.ResponseWriter, *http.Request)
 type AuthHandlers map[ResponseType]AuthHandler
 
 type AccessHandler func(*OAuth, *http.Request) (interface{}, int)

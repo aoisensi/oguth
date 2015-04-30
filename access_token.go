@@ -51,8 +51,23 @@ func accessTokenRequestAuthCode(a *OAuth, r *http.Request) (interface{}, int) {
 		e := NewError(ErrorCodeInvalidRequest)
 		return e, http.StatusBadRequest
 	}
-	//TODO
-	return nil, http.StatusAccepted
+	auth := a.config.Storage.GetAuthorize(f.Code)
+	if auth == nil {
+		e := NewError(ErrorCodeInvalidRequest)
+		return e, http.StatusBadRequest
+	}
+	token := a.config.AccessTokenGenerator()
+	access := &accessToken{
+		client:  auth.GetClient(),
+		expires: a.getTokenExpires(),
+	}
+	a.config.Storage.AddAccessToken(token, access)
+	resp := &accessTokenResponse{
+		AccessToken: token,
+		TokenType:   a.config.TokenType,
+		ExpiresIn:   a.config.accessTokenExpiresInt,
+	}
+	return resp, http.StatusAccepted
 }
 
 func accessTokenRequestPassowrd(a *OAuth, r *http.Request) (interface{}, int) {

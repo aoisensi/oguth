@@ -11,11 +11,12 @@ import (
 )
 
 const (
-	REDIRECT_URL = "http://localhost:1919/login"
-	LOGIN_URL    = REDIRECT_URL
+	LOGIN_URL    = "http://localhost:1919/login"
+	REDIRECT_URL = "http://localhost:1919/redirect"
 	AUTH_URL     = "http://localhost:1919/authorize"
 	TOKEN_URL    = "http://localhost:1919/token"
 	TEST_URL     = "http://localhost:1919/nickname"
+	CLIENT_URL   = "http://localhost:1919/client"
 
 	USERNAME = "aoisensi"
 	PASSWORD = "pAss30rD"
@@ -26,14 +27,24 @@ const (
 )
 
 var (
-	Endpoint = oauth2.Endpoint{AuthURL: AUTH_URL, TokenURL: TOKEN_URL}
+	User = &Client{Nickname: NICKNAME}
 )
+
+var (
+	OConfig = oauth2.Config{
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  AUTH_URL,
+			TokenURL: TOKEN_URL,
+		},
+	}
+)
+
+var Token *oauth2.Token
 
 func startTestServer() {
 	cfg := oguth.NewConfig()
 	owner := NewOwner()
 	cfg.Owner = owner
-	cfg.RedirectEndpoint = REDIRECT_URL
 	cfg.AuthorizeEndpoint = AUTH_URL
 	cfg.AccessTokenEndpoint = TOKEN_URL
 	oauth := oguth.NewOAuth(cfg)
@@ -66,30 +77,52 @@ func startTestServer() {
 			q := r.Form
 			username := q.Get("username")
 			password := q.Get("password")
-			q.Del("username")
-			q.Del("password")
 			cli := owner.GetClientWithPasswordGrant(username, password)
 			if cli == nil {
 				http.Error(w, "login failed", http.StatusBadRequest)
 				return
 			}
-			oauth.ConnectClientToCode(r.Form.Get("code"), cli)
-			oauth.RedirectAuthorize(w, r, q)
+			oauth.ConnectClientToCode(q.Get("code"), cli)
+			query := url.Values{
+				"response_type": {"code"},
+				"client_id":     {q.Get("client_id")},
+				"scope":         {q.Get("scope")},
+				"username":      {username},
+			}
+			state := q.Get("state")
+			if state != "" {
+				query.Add("state", state)
+			}
+			oauth.RedirectAuthorize(w, r, query)
 			return
 		}
 		http.Error(w, "Method not allowed.", http.StatusMethodNotAllowed)
 		return
 	})
-	/*
-		server = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			pp.Println(r.Method)
-			pp.Println(r.URL.String())
-			r.ParseForm()
-			pp.Println(r.Form)
-			pp.Println("==========================")
-			server.ServeHTTP(w, r)
-		})
-	*/
+	server.HandleFunc("/redirect", func(w http.ResponseWriter, r *http.Request) {
+		code := r.FormValue("code")
+		token, err := OConfig.Exchange(oauth2.NoContext, code)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
+		Token = token
+		http.Redirect(w, r, CLIENT_URL, http.StatusFound)
+	})
+	server.HandleFunc("/client", func(w http.ResponseWriter, r *http.Request) {
+		if Token == nil {
+			http.Error(w, "error", http.StatusNotFound)
+		}
+		cli := OConfig.Client(oauth2.NoContext, Token)
+		resp, err := cli.Get(TEST_URL)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+		}
+		defer resp.Body.Close()
+
+		body, _ := ioutil.ReadAll(resp.Body)
+		w.Write(body)
+	})
+
 	http.ListenAndServe("localhost:1919", server)
 }
 
@@ -109,11 +142,29 @@ func (o *Owner) GetClientWithPasswordGrant(username, password string) oguth.Clie
 	if username != USERNAME || password != PASSWORD {
 		return nil
 	}
-	return &Client{Nickname: NICKNAME}
+	return User
 }
 
 func (o *Owner) ExistClientId(id string) bool {
 	return id == CLIENT_ID
+}
+
+func (o *Owner) AuthCodeMissing(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, LOGIN_URL+"?"+r.URL.Query().Encode(), http.StatusFound)
+}
+
+func (o *Owner) AuthCodeDecision(r *http.Request, clientId string) oguth.Client {
+	if USERNAME == r.URL.Query().Get("username") { //bad method
+		return User
+	}
+	return nil
+}
+
+func (o *Owner) GetRedirectUri(clientId string) string {
+	if clientId == CLIENT_ID {
+		return REDIRECT_URL
+	}
+	return ""
 }
 
 func fastHttpGet(client *http.Client, url string, t *testing.T) string {

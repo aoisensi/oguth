@@ -34,39 +34,50 @@ type authorizeForm struct {
 	RedirectUri  string
 }
 
-func authorizeRequestCode(a *OAuth, r *http.Request) url.Values {
+func authorizeRequestCode(a *OAuth, w http.ResponseWriter, r *http.Request) {
 	f, err := newAuthorizeForm(r)
 	if err != nil {
-		err.State = f.State
-		return err.ToValues()
+		http.Error(w, "missing params", http.StatusBadRequest)
 	}
+	rurl := a.owner.GetRedirectUri(f.ClientId)
 
 	if err := f.Scope.Available(a); err != nil {
 		err.State = f.State
-		return err.ToValues()
+		http.Redirect(w, r, rurl+"?"+err.ToValues().Encode(), http.StatusFound)
+		return
 	}
 
 	ok := a.owner.ExistClientId(f.ClientId)
 	if !ok {
 		e := NewError(ErrorCodeUnauthorizedClient)
 		e.State = f.State
-		return e.ToValues()
+		http.Redirect(w, r, rurl+"?"+e.ToValues().Encode(), http.StatusFound)
+		return
+	}
+
+	client := a.owner.AuthCodeDecision(r, f.ClientId)
+	if client == nil {
+		a.owner.AuthCodeMissing(w, r)
+		return
 	}
 	code := a.config.AuthorizeGenerator()
 	auth := &authorize{
 		id:      f.ClientId,
 		expires: a.getAuthExpires(),
 		uri:     f.RedirectUri,
+		client:  client,
 	}
 	a.config.Storage.AddAuthorize(code, auth)
 	v := url.Values{"code": {code}}
 	if f.State != "" {
 		v.Set("state", f.State)
 	}
-	return v
+	http.Redirect(w, r, rurl+"?"+v.Encode(), http.StatusFound)
+	return
+
 }
 
-func authorizeRequestToken(a *OAuth, r *http.Request) url.Values {
+func authorizeRequestToken(a *OAuth, w http.ResponseWriter, r *http.Request) {
 	//TODO
 	/*
 		var f authorizeForm
@@ -97,7 +108,7 @@ func authorizeRequestToken(a *OAuth, r *http.Request) url.Values {
 			v.Set("state", f.State)
 		}
 	*/
-	return nil
+	return
 }
 
 func DefaultAuthCodeGenerator() (code string) {

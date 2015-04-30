@@ -4,14 +4,16 @@ import "time"
 
 func NewMemoryStorage() Storage {
 	return &memoryStorage{
-		authes: make(map[string]Authorize),
-		access: make(map[string]AccessToken),
+		authes:  make(map[string]Authorize),
+		access:  make(map[string]AccessToken),
+		refresh: make(map[string]RefreshToken),
 	}
 }
 
 type memoryStorage struct {
-	authes map[string]Authorize
-	access map[string]AccessToken
+	authes  map[string]Authorize
+	access  map[string]AccessToken
+	refresh map[string]RefreshToken
 }
 
 func (s *memoryStorage) AddAuthorize(code string, auth Authorize) {
@@ -42,6 +44,14 @@ func (s *memoryStorage) GetAccessToken(token string) AccessToken {
 	return s.access[token]
 }
 
+func (s *memoryStorage) AddRefreshToken(token string, refresh RefreshToken) {
+	s.refresh[token] = refresh
+}
+
+func (s *memoryStorage) SetRefreshToken(token string) RefreshToken {
+	return s.refresh[token]
+}
+
 type authorize struct {
 	id, uri string
 	expires time.Time
@@ -63,6 +73,10 @@ func (c *authorize) GetExpires() time.Time {
 
 func (c *authorize) GetRedirectUri() string {
 	return c.uri
+}
+
+func (c *authorize) GetClient() Client {
+	return c.client
 }
 
 func (c *authorize) SetClient(client Client) {

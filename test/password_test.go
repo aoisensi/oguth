@@ -10,12 +10,13 @@ import (
 func TestPasswordAuth(t *testing.T) {
 	go startTestServer()
 
-	conf := &oauth2.Config{Endpoint: Endpoint}
-	token, err := conf.PasswordCredentialsToken(oauth2.NoContext, USERNAME, PASSWORD)
+	cfg := OConfig
+
+	token, err := cfg.PasswordCredentialsToken(oauth2.NoContext, USERNAME, PASSWORD)
 	if err != nil {
 		t.Fatal(err)
 	}
-	client := conf.Client(oauth2.NoContext, token)
+	client := cfg.Client(oauth2.NoContext, token)
 	resp, err := client.Get(TEST_URL)
 	if err != nil {
 		t.Fatal(err)

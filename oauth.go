@@ -34,17 +34,16 @@ func (a *OAuth) AuthorizeRequestHandler(w http.ResponseWriter, r *http.Request) 
 	t := r.FormValue("response_type")
 	if t == "" {
 		v := ErrorResponseTypeMissing.ToValues()
-		a.writeAuthRedirect(w, r, v)
+		a.writeErrorRedirect(w, r, v)
 		return
 	}
 	authorizer := a.config.AuthHandlers[ResponseType(t)]
 	if authorizer == nil {
 		v := ErrorUnsupportedResponseType.ToValues()
-		a.writeAuthRedirect(w, r, v)
+		a.writeErrorRedirect(w, r, v)
 		return
 	}
-	v := authorizer(a, r)
-	a.writeAuthRedirect(w, r, v)
+	authorizer(a, w, r)
 }
 
 func (a *OAuth) AccessTokenRequestHandler(w http.ResponseWriter, r *http.Request) {
@@ -77,11 +76,14 @@ func (a *OAuth) AccessTokenRequestHandler(w http.ResponseWriter, r *http.Request
 func (a *OAuth) VerifyAccess(w http.ResponseWriter, r *http.Request) (Client, error) {
 	token := httpHeaderAuth(r)
 	at := a.config.Storage.GetAccessToken(token)
+	if at == nil {
+		return nil, errors.New("error client nil")
+	}
 	client := at.GetClient()
 	if client != nil {
 		return client, nil
 	}
-	return nil, errors.New("error")
+	return nil, errors.New("error client nil")
 }
 
 func (a *OAuth) ConnectClientToCode(code string, client Client) error {
@@ -106,7 +108,12 @@ func (a *OAuth) getTokenExpires() time.Time {
 	return time.Now().Add(a.config.AccessTokenExpires)
 }
 
-func (a *OAuth) writeAuthRedirect(w http.ResponseWriter, r *http.Request, v url.Values) {
+func (a *OAuth) writeErrorRedirect(w http.ResponseWriter, r *http.Request, v url.Values) {
+	url := a.config.RedirectEndpoint + "?" + v.Encode()
+	http.Redirect(w, r, url, http.StatusFound)
+}
+
+func (a *OAuth) writeRedirect(w http.ResponseWriter, r *http.Request, v url.Values) {
 	url := a.config.RedirectEndpoint + "?" + v.Encode()
 	http.Redirect(w, r, url, http.StatusFound)
 }
