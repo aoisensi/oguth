@@ -37,6 +37,10 @@ var (
 		Error:            ErrorCodeInvalidRequest,
 		ErrorDescription: "The OAuth client was not found.",
 	}
+	ErrorRefreshTokenInvalid = &Error{
+		Error:            ErrorCodeInvalidRequest,
+		ErrorDescription: "The refresh token is invalid.",
+	}
 )
 
 const (

@@ -48,8 +48,12 @@ func (s *memoryStorage) AddRefreshToken(token string, refresh RefreshToken) {
 	s.refresh[token] = refresh
 }
 
-func (s *memoryStorage) SetRefreshToken(token string) RefreshToken {
+func (s *memoryStorage) GetRefreshToken(token string) RefreshToken {
 	return s.refresh[token]
+}
+
+func (s *memoryStorage) DisableRefreshToken(token string) {
+	delete(s.refresh, token)
 }
 
 type authorize struct {
@@ -59,6 +63,11 @@ type authorize struct {
 }
 
 type accessToken struct {
+	client  Client
+	expires time.Time
+}
+
+type refreshToken struct {
 	client  Client
 	expires time.Time
 }
@@ -88,5 +97,13 @@ func (c *accessToken) GetClient() Client {
 }
 
 func (c *accessToken) GetExpires() time.Time {
+	return c.expires
+}
+
+func (c *refreshToken) GetClient() Client {
+	return c.client
+}
+
+func (c *refreshToken) GetExpires() time.Time {
 	return c.expires
 }

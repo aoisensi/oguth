@@ -28,5 +28,6 @@ type Storage interface {
 	GetAccessToken(token string) AccessToken
 
 	AddRefreshToken(token string, refresh RefreshToken)
-	SetRefreshToken(token string) RefreshToken
+	GetRefreshToken(token string) RefreshToken
+	DisableRefreshToken(token string)
 }

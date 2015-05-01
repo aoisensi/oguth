@@ -23,6 +23,7 @@ type Config struct {
 	accessTokenExpiresInt int
 	AuthorizeGenerator    func() string
 	AccessTokenGenerator  func() string
+	RefreshTokenGenerator func() string
 
 	AuthorizeEndpoint   string
 	AccessTokenEndpoint string
@@ -36,18 +37,20 @@ type Config struct {
 
 func NewConfig() Config {
 	return Config{
-		AuthorizeExpires:     time.Hour,
-		AccessTokenExpires:   time.Hour,
-		AuthorizeGenerator:   DefaultAuthCodeGenerator,
-		AccessTokenGenerator: DefaultAccessTokenGenerator,
-		TokenType:            TokenTypeBearer,
+		AuthorizeExpires:      time.Hour,
+		AccessTokenExpires:    time.Hour,
+		AuthorizeGenerator:    DefaultAuthCodeGenerator,
+		AccessTokenGenerator:  DefaultAccessTokenGenerator,
+		RefreshTokenGenerator: DefaultRefreshTokenGenerator,
+		TokenType:             TokenTypeBearer,
 		AuthHandlers: AuthHandlers{
 			ResponseCode:  authorizeRequestCode,
 			ResponseToken: authorizeRequestToken,
 		},
 		AccessHandlers: AccessHandlers{
-			GrantAuthCode: accessTokenRequestAuthCode,
-			GrantPassword: accessTokenRequestPassowrd,
+			GrantAuthCode:          accessTokenRequestAuthCode,
+			GrantPassword:          accessTokenRequestPassowrd,
+			GrantClientCredentials: accessTokenRequestClient,
 		},
 	}
 }

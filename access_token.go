@@ -26,23 +26,25 @@ func newTokenRequestForm(r *http.Request) *tokenRequestForm {
 	f.ClientId = q.Get("client_id")
 	f.Username = q.Get("username")
 	f.Password = q.Get("password")
+	f.RefreshToken = q.Get("refresh_token")
 	return f
 }
 
 type tokenRequestForm struct {
-	GrantType   GrantType
-	Code        string
-	RedirectUri string
-	ClientId    string
-	Username    string
-	Password    string
+	GrantType    GrantType
+	Code         string
+	RedirectUri  string
+	ClientId     string
+	Username     string
+	Password     string
+	RefreshToken string
 }
 
 type accessTokenResponse struct {
 	AccessToken  string    `json:"access_token"`
 	TokenType    TokenType `json:"token_type"`
 	ExpiresIn    int       `json:"expires_in"`
-	RefreshToken string    `json:"refresh_token"`
+	RefreshToken string    `json:"refresh_token,omitempty"`
 }
 
 func accessTokenRequestAuthCode(a *OAuth, r *http.Request) (interface{}, int) {
@@ -56,18 +58,8 @@ func accessTokenRequestAuthCode(a *OAuth, r *http.Request) (interface{}, int) {
 		e := NewError(ErrorCodeInvalidRequest)
 		return e, http.StatusBadRequest
 	}
-	token := a.config.AccessTokenGenerator()
-	access := &accessToken{
-		client:  auth.GetClient(),
-		expires: a.getTokenExpires(),
-	}
-	a.config.Storage.AddAccessToken(token, access)
-	resp := &accessTokenResponse{
-		AccessToken: token,
-		TokenType:   a.config.TokenType,
-		ExpiresIn:   a.config.accessTokenExpiresInt,
-	}
-	return resp, http.StatusAccepted
+
+	return a.newAccessTokenResponse(auth.GetClient(), true)
 }
 
 func accessTokenRequestPassowrd(a *OAuth, r *http.Request) (interface{}, int) {
@@ -85,23 +77,54 @@ func accessTokenRequestPassowrd(a *OAuth, r *http.Request) (interface{}, int) {
 		e := NewError(ErrorCodeInvalidRequest)
 		return e, http.StatusBadRequest
 	}
-	cli := a.owner.GetClientWithPasswordGrant(username, password)
-	if cli == nil {
-		e := NewError(ErrorCodeUnauthorizedClient)
-		return e, http.StatusBadRequest
-	}
+	client := a.owner.GetClientWithPasswordGrant(username, password)
 
+	return a.newAccessTokenResponse(client, true)
+}
+
+func accessTokenRequestClient(a *OAuth, r *http.Request) (interface{}, int) {
+	clientId, clientSecret, ok := r.BasicAuth()
+	if !ok {
+		return nil, 500
+	}
+	client := a.owner.GetClient(clientId, clientSecret)
+
+	return a.newAccessTokenResponse(client, false)
+}
+
+func accessTokenRefresh(a *OAuth, r *http.Request) (interface{}, int) {
+	f := newTokenRequestForm(r)
+	token := a.config.Storage.GetRefreshToken(f.RefreshToken)
+	if token == nil {
+		return ErrorRefreshTokenInvalid, http.StatusBadRequest
+	}
+	a.config.Storage.DisableRefreshToken(f.RefreshToken)
+	return a.newAccessTokenResponse(token.GetClient(), true)
+}
+
+func (a *OAuth) newAccessTokenResponse(client Client, genRefresh bool) (interface{}, int) {
+	if client == nil {
+		return ErrorClientNotFound, http.StatusBadRequest
+	}
 	token := a.config.AccessTokenGenerator()
 	access := &accessToken{
-		client:  cli,
+		client:  client,
 		expires: a.getTokenExpires(),
 	}
 	a.config.Storage.AddAccessToken(token, access)
+	var refresh string
+	if genRefresh {
+		refresh := a.config.RefreshTokenGenerator()
+
+		a.config.Storage.AddRefreshToken(refresh, &refreshToken{
+			client: client,
+		})
+	}
 	body := accessTokenResponse{
 		TokenType:    a.config.TokenType,
 		AccessToken:  token,
 		ExpiresIn:    a.config.accessTokenExpiresInt,
-		RefreshToken: "test",
+		RefreshToken: refresh,
 	}
 	return body, http.StatusAccepted
 }
